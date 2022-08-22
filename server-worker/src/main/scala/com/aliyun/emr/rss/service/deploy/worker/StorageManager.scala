@@ -42,8 +42,7 @@ import com.aliyun.emr.rss.common.metrics.source.AbstractSource
 import com.aliyun.emr.rss.common.network.server.{FileInfo, MemoryTracker}
 import com.aliyun.emr.rss.common.network.server.MemoryTracker.MemoryTrackerListener
 import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType, StorageInfo}
-import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
-import com.aliyun.emr.rss.common.utils.PBSerDeUtils
+import com.aliyun.emr.rss.common.util.{PBSerDeUtils, ThreadUtils, Utils}
 import com.aliyun.emr.rss.service.deploy.worker.FileWriter.FlushNotifier
 
 trait DeviceObserver {

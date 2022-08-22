@@ -38,8 +38,7 @@ import com.aliyun.emr.rss.common.network.server.{ChannelsLimiter, MemoryTracker}
 import com.aliyun.emr.rss.common.protocol.{RpcNameConstants, TransportModuleConstants}
 import com.aliyun.emr.rss.common.protocol.message.ControlMessages._
 import com.aliyun.emr.rss.common.rpc._
-import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
-import com.aliyun.emr.rss.common.utils.ShutdownHookManager
+import com.aliyun.emr.rss.common.util.{ShutdownHookManager, ThreadUtils, Utils}
 import com.aliyun.emr.rss.server.common.http.{HttpServer, HttpServerInitializer}
 import com.aliyun.emr.rss.service.deploy.worker.http.HttpRequestHandler
 
