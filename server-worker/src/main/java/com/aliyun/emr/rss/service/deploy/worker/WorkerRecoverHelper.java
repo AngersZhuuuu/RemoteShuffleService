@@ -19,7 +19,7 @@ package com.aliyun.emr.rss.service.deploy.worker;
 
 import java.nio.charset.StandardCharsets;
 
-public abstract class ShuffleRecoverHelper {
+public abstract class WorkerRecoverHelper {
   protected String SHUFFLE_KEY_PREFIX = "SHUFFLE-KEY";
   protected LevelDBProvider.StoreVersion CURRENT_VERSION = new LevelDBProvider.StoreVersion(1, 0);
 

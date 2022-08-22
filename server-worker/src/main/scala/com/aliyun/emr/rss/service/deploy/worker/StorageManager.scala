@@ -244,7 +244,7 @@ private[worker] class LocalFlusher(
 private[worker] final class StorageManager(
     conf: RssConf,
     workerSource: AbstractSource)
-  extends ShuffleRecoverHelper with DeviceObserver with Logging with MemoryTrackerListener{
+  extends WorkerRecoverHelper with DeviceObserver with Logging with MemoryTrackerListener{
   // mount point -> filewriter
   val workingDirWriters = new ConcurrentHashMap[File, util.ArrayList[FileWriter]]()
 
@@ -610,7 +610,7 @@ private[worker] final class StorageManager(
         allWriters.addAll(writers)
       }
     }
-    allWriters.asScala.foreach{ case writer =>
+    allWriters.asScala.foreach { case writer =>
       writer.flushOnMemoryPressure()
     }
   }
