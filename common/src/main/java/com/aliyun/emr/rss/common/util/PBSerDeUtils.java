@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package com.aliyun.emr.rss.common.utils;
+package com.aliyun.emr.rss.common.util;
 
 import java.io.File;
 import java.util.ArrayList;
