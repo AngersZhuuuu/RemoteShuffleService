@@ -31,17 +31,20 @@ public final class PushData extends RequestMessage {
   // 0 for master, 1 for slave, see PartitionLocation.Mode
   public final byte mode;
 
+  public final String user;
+
   public final String shuffleKey;
   public final String partitionUniqueId;
 
-  public PushData(byte mode, String shuffleKey, String partitionUniqueId, ManagedBuffer body) {
-    this(0L, 0, mode, shuffleKey, partitionUniqueId, body);
+  public PushData(byte mode, String user, String shuffleKey, String partitionUniqueId, ManagedBuffer body) {
+    this(0L, 0, mode, user, shuffleKey, partitionUniqueId, body);
   }
 
   private PushData(
       long requestId,
       int epoch,
       byte mode,
+      String user,
       String shuffleKey,
       String partitionUniqueId,
       ManagedBuffer body) {
@@ -49,6 +52,7 @@ public final class PushData extends RequestMessage {
     this.requestId = requestId;
     this.epoch = epoch;
     this.mode = mode;
+    this.user = user;
     this.shuffleKey = shuffleKey;
     this.partitionUniqueId = partitionUniqueId;
   }
@@ -63,6 +67,7 @@ public final class PushData extends RequestMessage {
     return 8
         + 4
         + 1
+        + Encoders.Strings.encodedLength(user)
         + Encoders.Strings.encodedLength(shuffleKey)
         + Encoders.Strings.encodedLength(partitionUniqueId);
   }
@@ -72,6 +77,7 @@ public final class PushData extends RequestMessage {
     buf.writeLong(requestId);
     buf.writeInt(epoch);
     buf.writeByte(mode);
+    Encoders.Strings.encode(buf, user);
     Encoders.Strings.encode(buf, shuffleKey);
     Encoders.Strings.encode(buf, partitionUniqueId);
   }
@@ -84,20 +90,21 @@ public final class PushData extends RequestMessage {
     long requestId = buf.readLong();
     int epoch = buf.readInt();
     byte mode = buf.readByte();
+    String user = Encoders.Strings.decode(buf);
     String shuffleKey = Encoders.Strings.decode(buf);
     String partitionUniqueId = Encoders.Strings.decode(buf);
     if (decodeBody) {
       return new PushData(
-          requestId, epoch, mode, shuffleKey, partitionUniqueId, new NettyManagedBuffer(buf));
+          requestId, epoch, mode, user, shuffleKey, partitionUniqueId, new NettyManagedBuffer(buf));
     } else {
       return new PushData(
-          requestId, epoch, mode, shuffleKey, partitionUniqueId, NettyManagedBuffer.EmptyBuffer);
+          requestId, epoch, mode, user, shuffleKey, partitionUniqueId, NettyManagedBuffer.EmptyBuffer);
     }
   }
 
   @Override
   public int hashCode() {
-    return Objects.hashCode(requestId, epoch, mode, shuffleKey, partitionUniqueId, body());
+    return Objects.hashCode(requestId, epoch, mode, user, shuffleKey, partitionUniqueId, body());
   }
 
   @Override
@@ -107,6 +114,7 @@ public final class PushData extends RequestMessage {
       return requestId == o.requestId
           && epoch == o.epoch
           && mode == o.mode
+          && user.equals(o.user)
           && shuffleKey.equals(o.shuffleKey)
           && partitionUniqueId.equals((o.partitionUniqueId))
           && super.equals(o);
@@ -119,6 +127,7 @@ public final class PushData extends RequestMessage {
     return Objects.toStringHelper(this)
         .add("requestId", requestId)
         .add("mode", mode)
+        .add("user", user)
         .add("shuffleKey", shuffleKey)
         .add("partitionUniqueId", partitionUniqueId)
         .add("body size", body().size())

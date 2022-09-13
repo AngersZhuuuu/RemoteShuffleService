@@ -196,7 +196,7 @@ private[deploy] class Master(
   }
 
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
-    case HeartbeatFromApplication(appId, totalWritten, fileCount, requestId) =>
+    case HeartbeatFromApplication(appId, user, totalWritten, fileCount, requestId) =>
       logDebug(s"Received heartbeat from app $appId")
       executeWithLeaderChecker(
         context,
@@ -217,18 +217,18 @@ private[deploy] class Master(
           disks,
           requestId))
 
-    case requestSlots @ RequestSlots(_, _, _, _, _, _) =>
+    case requestSlots @ RequestSlots(_, _, _, _, _, _, _) =>
       logTrace(s"Received RequestSlots request $requestSlots.")
       executeWithLeaderChecker(context, handleRequestSlots(context, requestSlots))
 
-    case ReleaseSlots(applicationId, shuffleId, workerIds, slots, requestId) =>
+    case ReleaseSlots(applicationId, user, shuffleId, workerIds, slots, requestId) =>
       logTrace(s"Received ReleaseSlots request $requestId, $applicationId, $shuffleId," +
         s"workers ${workerIds.asScala.mkString(",")}, slots ${slots.asScala.mkString(",")}")
       executeWithLeaderChecker(
         context,
         handleReleaseSlots(context, applicationId, shuffleId, workerIds, slots, requestId))
 
-    case UnregisterShuffle(applicationId, shuffleId, requestId) =>
+    case UnregisterShuffle(applicationId, user, shuffleId, requestId) =>
       logDebug(s"Received UnregisterShuffle request $requestId, $applicationId, $shuffleId")
       executeWithLeaderChecker(
         context,
@@ -237,7 +237,7 @@ private[deploy] class Master(
     case msg: GetBlacklist =>
       executeWithLeaderChecker(context, handleGetBlacklist(context, msg))
 
-    case ApplicationLost(appId, requestId) =>
+    case ApplicationLost(appId, user, requestId) =>
       logDebug(s"Received ApplicationLost request $requestId, $appId.")
       executeWithLeaderChecker(context, handleApplicationLost(context, appId, requestId))
 

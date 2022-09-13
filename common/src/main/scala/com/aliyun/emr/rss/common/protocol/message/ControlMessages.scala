@@ -121,6 +121,7 @@ sealed trait Message extends Serializable {
 
       case RequestSlots(
             applicationId,
+        user,
             shuffleId,
             partitionIdList,
             hostname,
@@ -128,6 +129,7 @@ sealed trait Message extends Serializable {
             requestId) =>
         val payload = PbRequestSlots.newBuilder()
           .setApplicationId(applicationId)
+          .setUser(user)
           .setShuffleId(shuffleId)
           .addAllPartitionIdList(partitionIdList)
           .setHostname(hostname)
@@ -136,11 +138,12 @@ sealed trait Message extends Serializable {
           .build().toByteArray
         new TransportMessage(MessageType.REQUEST_SLOTS, payload)
 
-      case ReleaseSlots(applicationId, shuffleId, workerIds, slots, requestId) =>
+      case ReleaseSlots(applicationId, user, shuffleId, workerIds, slots, requestId) =>
         val pbSlots = slots.asScala.map(slot =>
           PbSlotInfo.newBuilder().putAllSlot(slot).build()).toList
         val payload = PbReleaseSlots.newBuilder()
           .setApplicationId(applicationId)
+          .setUser(user)
           .setShuffleId(shuffleId)
           .setRequestId(requestId)
           .addAllWorkerIds(workerIds)
@@ -262,9 +265,12 @@ sealed trait Message extends Serializable {
           .build().toByteArray
         new TransportMessage(MessageType.STAGE_END_RESPONSE, payload)
 
-      case UnregisterShuffle(appId, shuffleId, requestId) =>
+      case UnregisterShuffle(appId, user, shuffleId, requestId) =>
         val payload = PbUnregisterShuffle.newBuilder()
-          .setAppId(appId).setShuffleId(shuffleId).setRequestId(requestId)
+          .setAppId(appId)
+          .setUser(user)
+          .setShuffleId(shuffleId)
+          .setRequestId(requestId)
           .build().toByteArray
         new TransportMessage(MessageType.UNREGISTER_SHUFFLE, payload)
 
@@ -274,9 +280,11 @@ sealed trait Message extends Serializable {
           .build().toByteArray
         new TransportMessage(MessageType.UNREGISTER_SHUFFLE_RESPONSE, payload)
 
-      case ApplicationLost(appId, requestId) =>
+      case ApplicationLost(appId, user, requestId) =>
         val payload = PbApplicationLost.newBuilder()
-          .setAppId(appId).setRequestId(requestId)
+          .setAppId(appId)
+          .setUser(user)
+          .setRequestId(requestId)
           .build().toByteArray
         new TransportMessage(MessageType.APPLICATION_LOST, payload)
 
@@ -285,9 +293,10 @@ sealed trait Message extends Serializable {
           .setStatus(status.getValue).build().toByteArray
         new TransportMessage(MessageType.APPLICATION_LOST_RESPONSE, payload)
 
-      case HeartbeatFromApplication(appId, totalWritten, fileCount, requestId) =>
+      case HeartbeatFromApplication(appId, user, totalWritten, fileCount, requestId) =>
         val payload = PbHeartbeatFromApplication.newBuilder()
           .setAppId(appId)
+          .setUser(user)
           .setRequestId(requestId)
           .setTotalWritten(totalWritten)
           .setFileCount(fileCount)
@@ -342,6 +351,7 @@ sealed trait Message extends Serializable {
 
       case ReserveSlots(
             applicationId,
+        user,
             shuffleId,
             masterLocations,
             slaveLocations,
@@ -350,6 +360,7 @@ sealed trait Message extends Serializable {
             partType) =>
         val payload = PbReserveSlots.newBuilder()
           .setApplicationId(applicationId)
+          .setUser(user)
           .setShuffleId(shuffleId)
           .addAllMasterLocations(masterLocations.asScala
             .map(PartitionLocation.toPbPartitionLocation(_)).toList.asJava)
@@ -367,9 +378,10 @@ sealed trait Message extends Serializable {
           .build().toByteArray
         new TransportMessage(MessageType.RESERVE_SLOTS_RESPONSE, payload)
 
-      case CommitFiles(applicationId, shuffleId, masterIds, slaveIds, mapAttempts) =>
+      case CommitFiles(applicationId, user, shuffleId, masterIds, slaveIds, mapAttempts) =>
         val payload = PbCommitFiles.newBuilder()
           .setApplicationId(applicationId)
+          .setUser(user)
           .setShuffleId(shuffleId)
           .addAllMasterIds(masterIds)
           .addAllSlaveIds(slaveIds)
@@ -402,8 +414,9 @@ sealed trait Message extends Serializable {
         val payload = builder.build().toByteArray
         new TransportMessage(MessageType.COMMIT_FILES_RESPONSE, payload)
 
-      case Destroy(shuffleKey, masterLocations, slaveLocations) =>
+      case Destroy(user, shuffleKey, masterLocations, slaveLocations) =>
         val payload = PbDestroy.newBuilder()
+          .setUser(user)
           .setShuffleKey(shuffleKey)
           .addAllMasterLocations(masterLocations)
           .addAllSlaveLocation(slaveLocations)
@@ -529,6 +542,7 @@ object ControlMessages extends Logging {
 
   case class RequestSlots(
       applicationId: String,
+      user: String,
       shuffleId: Int,
       partitionIdList: util.ArrayList[Integer],
       hostname: String,
@@ -538,6 +552,7 @@ object ControlMessages extends Logging {
 
   case class ReleaseSlots(
       applicationId: String,
+      user: String,
       shuffleId: Int,
       workerIds: util.List[String],
       slots: util.List[util.Map[String, Integer]],
@@ -615,6 +630,7 @@ object ControlMessages extends Logging {
 
   case class UnregisterShuffle(
       appId: String,
+      user: String,
       shuffleId: Int,
       override var requestId: String = ZERO_UUID) extends MasterRequestMessage
 
@@ -622,12 +638,14 @@ object ControlMessages extends Logging {
 
   case class ApplicationLost(
       appId: String,
+      user: String,
       override var requestId: String = ZERO_UUID) extends MasterRequestMessage
 
   case class ApplicationLostResponse(status: StatusCode) extends MasterMessage
 
   case class HeartbeatFromApplication(
       appId: String,
+      user: String,
       totalWritten: Long,
       fileCount: Long,
       override var requestId: String = ZERO_UUID) extends MasterRequestMessage
@@ -658,6 +676,7 @@ object ControlMessages extends Logging {
 
   case class ReserveSlots(
       applicationId: String,
+    user: String,
       shuffleId: Int,
       masterLocations: util.List[PartitionLocation],
       slaveLocations: util.List[PartitionLocation],
@@ -672,6 +691,7 @@ object ControlMessages extends Logging {
 
   case class CommitFiles(
       applicationId: String,
+    user: String,
       shuffleId: Int,
       masterIds: util.List[String],
       slaveIds: util.List[String],
@@ -692,6 +712,7 @@ object ControlMessages extends Logging {
       fileCount: Int = 0) extends WorkerMessage
 
   case class Destroy(
+      user: String,
       shuffleKey: String,
       masterLocations: util.List[String],
       slaveLocations: util.List[String])
@@ -800,6 +821,7 @@ object ControlMessages extends Logging {
         val pbRequestSlots = PbRequestSlots.parseFrom(message.getPayload)
         RequestSlots(
           pbRequestSlots.getApplicationId,
+          pbRequestSlots.getUser,
           pbRequestSlots.getShuffleId,
           new util.ArrayList[Integer](pbRequestSlots.getPartitionIdListList),
           pbRequestSlots.getHostname,
@@ -812,6 +834,7 @@ object ControlMessages extends Logging {
           new util.HashMap[String, Integer](pbSlot.getSlotMap)).toList.asJava
         ReleaseSlots(
           pbRequestSlots.getApplicationId,
+          pbRequestSlots.getUser,
           pbRequestSlots.getShuffleId,
           new util.ArrayList[String](pbRequestSlots.getWorkerIdsList),
           new util.ArrayList[util.Map[String, Integer]](slotsList),
@@ -889,6 +912,7 @@ object ControlMessages extends Logging {
         val pbUnregisterShuffle = PbUnregisterShuffle.parseFrom(message.getPayload)
         UnregisterShuffle(
           pbUnregisterShuffle.getAppId,
+          pbUnregisterShuffle.getUser,
           pbUnregisterShuffle.getShuffleId,
           pbUnregisterShuffle.getRequestId)
 
@@ -908,6 +932,7 @@ object ControlMessages extends Logging {
         val pbHeartbeatFromApplication = PbHeartbeatFromApplication.parseFrom(message.getPayload)
         HeartbeatFromApplication(
           pbHeartbeatFromApplication.getAppId,
+          pbHeartbeatFromApplication.getUser,
           pbHeartbeatFromApplication.getTotalWritten,
           pbHeartbeatFromApplication.getFileCount,
           pbHeartbeatFromApplication.getRequestId)
@@ -955,6 +980,7 @@ object ControlMessages extends Logging {
         val pbReserveSlots = PbReserveSlots.parseFrom(message.getPayload)
         ReserveSlots(
           pbReserveSlots.getApplicationId,
+          pbReserveSlots.getUser,
           pbReserveSlots.getShuffleId,
           new util.ArrayList[PartitionLocation](pbReserveSlots.getMasterLocationsList.asScala
             .map(PartitionLocation.fromPbPartitionLocation(_)).toList.asJava),
@@ -974,6 +1000,7 @@ object ControlMessages extends Logging {
         val pbCommitFiles = PbCommitFiles.parseFrom(message.getPayload)
         CommitFiles(
           pbCommitFiles.getApplicationId,
+          pbCommitFiles.getUser,
           pbCommitFiles.getShuffleId,
           pbCommitFiles.getMasterIdsList,
           pbCommitFiles.getSlaveIdsList,
@@ -1001,6 +1028,7 @@ object ControlMessages extends Logging {
       case DESTROY =>
         val pbDestroy = PbDestroy.parseFrom(message.getPayload)
         Destroy(
+          pbDestroy.getUser,
           pbDestroy.getShuffleKey,
           pbDestroy.getMasterLocationsList,
           pbDestroy.getSlaveLocationList)

@@ -171,7 +171,7 @@ public class ShuffleClientImpl extends ShuffleClient {
         String shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId);
 
         PushData newPushData =
-            new PushData(MASTER_MODE, shuffleKey, newLoc.getUniqueId(), newBuffer);
+            new PushData(MASTER_MODE, "", shuffleKey, newLoc.getUniqueId(), newBuffer);
         ChannelFuture future = client.pushData(newPushData, callback);
         pushState.addFuture(batchId, future);
       } catch (Exception ex) {
@@ -537,7 +537,7 @@ public class ShuffleClientImpl extends ShuffleClient {
 
       // build PushData request
       NettyManagedBuffer buffer = new NettyManagedBuffer(Unpooled.wrappedBuffer(body));
-      PushData pushData = new PushData(MASTER_MODE, shuffleKey, loc.getUniqueId(), buffer);
+      PushData pushData = new PushData(MASTER_MODE, "", shuffleKey, loc.getUniqueId(), buffer);
 
       // build callback
       RpcResponseCallback callback =
@@ -836,7 +836,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     NettyManagedBuffer buffer = new NettyManagedBuffer(byteBuf);
     String shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId);
     PushMergedData mergedData =
-        new PushMergedData(MASTER_MODE, shuffleKey, partitionUniqueIds, offsets, buffer);
+        new PushMergedData(MASTER_MODE, "", shuffleKey, partitionUniqueIds, offsets, buffer);
 
     RpcResponseCallback callback =
         new RpcResponseCallback() {
@@ -974,7 +974,7 @@ public class ShuffleClientImpl extends ShuffleClient {
     if (isDriver) {
       try {
         driverRssMetaService.send(
-            new UnregisterShuffle(applicationId, shuffleId, ControlMessages.ZERO_UUID()));
+            new UnregisterShuffle(applicationId, "", shuffleId, ControlMessages.ZERO_UUID()));
       } catch (Exception e) {
         // If some exceptions need to be ignored, they shouldn't be logged as error-level,
         // otherwise it will mislead users.

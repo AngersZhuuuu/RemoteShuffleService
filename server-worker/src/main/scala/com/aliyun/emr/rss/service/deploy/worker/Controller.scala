@@ -70,6 +70,7 @@ private[deploy] class Controller(
   override def receiveAndReply(context: RpcCallContext): PartialFunction[Any, Unit] = {
     case ReserveSlots(
           applicationId,
+          user,
           shuffleId,
           masterLocations,
           slaveLocations,
@@ -93,7 +94,7 @@ private[deploy] class Controller(
         logDebug(s"ReserveSlots for $shuffleKey finished.")
       }
 
-    case CommitFiles(applicationId, shuffleId, masterIds, slaveIds, mapAttempts) =>
+    case CommitFiles(applicationId, user, shuffleId, masterIds, slaveIds, mapAttempts) =>
       val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
       workerSource.sample(WorkerSource.CommitFilesTime, shuffleKey) {
         logDebug(s"Received CommitFiles request, $shuffleKey, master files" +
@@ -111,7 +112,7 @@ private[deploy] class Controller(
     case ThreadDump =>
       handleThreadDump(context)
 
-    case Destroy(shuffleKey, masterLocations, slaveLocations) =>
+    case Destroy(user, shuffleKey, masterLocations, slaveLocations) =>
       handleDestroy(context, shuffleKey, masterLocations, slaveLocations)
   }
 
