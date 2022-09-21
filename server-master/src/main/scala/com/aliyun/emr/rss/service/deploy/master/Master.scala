@@ -20,7 +20,7 @@ package com.aliyun.emr.rss.service.deploy.master
 import java.io.IOException
 import java.net.BindException
 import java.util
-import java.util.concurrent.{ScheduledFuture, TimeUnit}
+import java.util.concurrent.{ConcurrentHashMap, ScheduledFuture, TimeUnit}
 
 import scala.collection.JavaConverters._
 import scala.util.Random
@@ -202,7 +202,15 @@ private[deploy] class Master(
         context,
         handleHeartbeatFromApplication(context, appId, totalWritten, fileCount, requestId))
 
-    case RegisterWorker(host, rpcPort, pushPort, fetchPort, replicatePort, disks, requestId) =>
+    case RegisterWorker(
+          host,
+          rpcPort,
+          pushPort,
+          fetchPort,
+          replicatePort,
+          disks,
+          userUsages,
+          requestId) =>
       logDebug(s"Received RegisterWorker request $requestId, $host:$pushPort:$replicatePort" +
         s" $disks.")
       executeWithLeaderChecker(
@@ -215,9 +223,10 @@ private[deploy] class Master(
           fetchPort,
           replicatePort,
           disks,
+          userUsages,
           requestId))
 
-    case requestSlots @ RequestSlots(_, _, _, _, _, _) =>
+    case requestSlots @ RequestSlots(_, _, _, _, _, _, _) =>
       logTrace(s"Received RequestSlots request $requestSlots.")
       executeWithLeaderChecker(context, handleRequestSlots(context, requestSlots))
 
@@ -249,6 +258,7 @@ private[deploy] class Master(
           replicatePort,
           disks,
           shuffleKeys,
+          userUsages,
           requestId) =>
       logDebug(s"Received heartbeat from" +
         s" worker $host:$rpcPort:$pushPort:$fetchPort with $disks.")
@@ -263,6 +273,7 @@ private[deploy] class Master(
           replicatePort,
           disks,
           shuffleKeys,
+          userUsages,
           requestId))
 
     case GetWorkerInfos =>
@@ -323,8 +334,10 @@ private[deploy] class Master(
       replicatePort: Int,
       disks: util.Map[String, DiskInfo],
       shuffleKeys: util.HashSet[String],
+      userUsages: ConcurrentHashMap[UserIdentifier, java.lang.Long],
       requestId: String): Unit = {
-    val targetWorker = new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort)
+    val targetWorker =
+      new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, disks, userUsages, null)
     val registered = workersSnapShot.asScala.contains(targetWorker)
     if (!registered) {
       logWarning(s"Received heartbeat from unknown worker " +
@@ -337,6 +350,7 @@ private[deploy] class Master(
         fetchPort,
         replicatePort,
         disks,
+        userUsages,
         System.currentTimeMillis(),
         requestId)
     }
@@ -366,6 +380,7 @@ private[deploy] class Master(
       fetchPort,
       replicatePort,
       new util.HashMap[String, DiskInfo](),
+      null,
       null)
     val worker: WorkerInfo = workersSnapShot
       .asScala
@@ -392,9 +407,10 @@ private[deploy] class Master(
       fetchPort: Int,
       replicatePort: Int,
       disks: util.Map[String, DiskInfo],
+      userUsages: ConcurrentHashMap[UserIdentifier, java.lang.Long],
       requestId: String): Unit = {
     val workerToRegister =
-      new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, disks, null)
+      new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, disks, userUsages, null)
     if (workersSnapShot.contains(workerToRegister)) {
       logWarning(s"Receive RegisterWorker while worker" +
         s" ${workerToRegister.toString()} already exists, re-register.")
@@ -406,6 +422,7 @@ private[deploy] class Master(
         fetchPort,
         replicatePort,
         disks,
+        userUsages,
         requestId)
       context.reply(RegisterWorkerResponse(true, "Worker in snapshot, re-register."))
     } else if (statusSystem.workerLostEvents.contains(workerToRegister)) {
@@ -419,6 +436,7 @@ private[deploy] class Master(
         fetchPort,
         replicatePort,
         disks,
+        userUsages,
         requestId)
       context.reply(RegisterWorkerResponse(true, "Worker in workerLostEvents, re-register."))
     } else {
@@ -429,6 +447,7 @@ private[deploy] class Master(
         fetchPort,
         replicatePort,
         disks,
+        userUsages,
         requestId)
       logInfo(s"Registered worker $workerToRegister.")
       context.reply(RegisterWorkerResponse(true, ""))
@@ -476,6 +495,7 @@ private[deploy] class Master(
     // register shuffle success, update status
     statusSystem.handleRequestSlots(
       shuffleKey,
+      requestSlots.userIdentifier,
       requestSlots.hostname,
       Utils.getSlotsPerDisk(slots.asInstanceOf[WorkerResource])
         .asScala.map { case (worker, slots) => worker.toUniqueId() -> slots }.asJava,
@@ -652,6 +672,7 @@ private[deploy] class Master(
           -1,
           -1,
           new util.HashMap[String, DiskInfo](),
+          new ConcurrentHashMap[UserIdentifier, java.lang.Long](),
           null))
         GetWorkerInfosResponse(StatusCode.FAILED, result.asScala: _*)
     }

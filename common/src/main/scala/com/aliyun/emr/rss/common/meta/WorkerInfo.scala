@@ -19,11 +19,13 @@ package com.aliyun.emr.rss.common.meta
 
 import java.util
 import java.util.Objects
+import java.util.concurrent.ConcurrentHashMap
 
 import scala.collection.JavaConverters.{collectionAsScalaIterableConverter, mapAsJavaMapConverter, mapAsScalaMapConverter}
 
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.protocol.{PbDiskInfo, PbWorkerInfo}
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages.UserIdentifier
 import com.aliyun.emr.rss.common.rpc.RpcEndpointRef
 import com.aliyun.emr.rss.common.rpc.netty.NettyRpcEndpointRef
 
@@ -34,6 +36,7 @@ class WorkerInfo(
     val fetchPort: Int,
     val replicatePort: Int,
     val diskInfos: util.Map[String, DiskInfo],
+    var userUsages: ConcurrentHashMap[UserIdentifier, java.lang.Long],
     var endpoint: RpcEndpointRef) extends Serializable with Logging {
   var unknownDiskSlots = new java.util.HashMap[String, Integer]()
   var lastHeartbeat: Long = 0
@@ -46,6 +49,7 @@ class WorkerInfo(
       fetchPort,
       replicatePort,
       new util.HashMap[String, DiskInfo](),
+      new ConcurrentHashMap[UserIdentifier, java.lang.Long](),
       null)
   }
 
@@ -55,15 +59,16 @@ class WorkerInfo(
       pushPort: Int,
       fetchPort: Int,
       replicatePort: Int,
-      endpoint: RpcEndpointRef) {
+      diskInfos: util.Map[String, DiskInfo]) {
     this(
       host,
       rpcPort,
       pushPort,
       fetchPort,
       replicatePort,
-      new util.HashMap[String, DiskInfo](),
-      endpoint)
+      diskInfos,
+      new ConcurrentHashMap[UserIdentifier, java.lang.Long](),
+      null)
   }
 
   val allocationBuckets = new Array[Int](61)
@@ -73,6 +78,7 @@ class WorkerInfo(
   0 until allocationBuckets.length foreach { case idx =>
     allocationBuckets(idx) = 0
   }
+  var userToShuffleKey = new ConcurrentHashMap[UserIdentifier, util.Set[String]]()
 
   def isActive: Boolean = {
     endpoint.asInstanceOf[NettyRpcEndpointRef].client.isActive
@@ -83,7 +89,10 @@ class WorkerInfo(
       unknownDiskSlots.values().asScala.map(_.intValue()).sum
   }
 
-  def allocateSlots(shuffleKey: String, slotsPerDisk: util.Map[String, Integer]): Unit =
+  def allocateSlots(
+      shuffleKey: String,
+      userIdentifier: UserIdentifier,
+      slotsPerDisk: util.Map[String, Integer]): Unit =
     this.synchronized {
       logDebug(s"shuffle $shuffleKey allocations $slotsPerDisk")
       var totalSlots = 0
@@ -99,6 +108,14 @@ class WorkerInfo(
           diskInfos.get(disk).allocateSlots(shuffleKey, slots)
         }
         totalSlots += slots
+      }
+
+      if (userToShuffleKey.containsKey(userIdentifier)) {
+        userToShuffleKey.get(userIdentifier).add(shuffleKey)
+      } else {
+        val shuffleKeys = new util.HashSet[String]()
+        shuffleKeys.add(shuffleKey)
+        userToShuffleKey.put(userIdentifier, shuffleKeys)
       }
 
       val current = System.currentTimeMillis()
@@ -213,6 +230,10 @@ class WorkerInfo(
     }
   }
 
+  def updateUserUsage(userUsage: ConcurrentHashMap[UserIdentifier, java.lang.Long]): Unit = {
+    this.userUsages = userUsage
+  }
+
   override def toString(): String = {
     s"""
        |Host: $host
@@ -262,6 +283,10 @@ object WorkerInfo {
         new util.HashMap[String, DiskInfo]()
       }
 
+    val usages = new ConcurrentHashMap[UserIdentifier, java.lang.Long]()
+    usages.putAll(pbWorker.getUserUsagesMap.asScala.map { case (user, usage) =>
+      UserIdentifier.fromString(user) -> usage
+    }.toMap.asJava)
     new WorkerInfo(
       pbWorker.getHost,
       pbWorker.getRpcPort,
@@ -269,6 +294,7 @@ object WorkerInfo {
       pbWorker.getFetchPort,
       pbWorker.getReplicatePort,
       disks,
+      usages,
       null)
   }
 
@@ -283,6 +309,12 @@ object WorkerInfo {
             .setUsedSlots(item._2.activeSlots)
             .build())
       .asJava
+
+    val usages = workerInfo.userUsages.asScala
+      .map { case (user, usage) =>
+        user.toString -> usage
+      }.asJava
+
     PbWorkerInfo
       .newBuilder()
       .setHost(workerInfo.host)
@@ -291,6 +323,7 @@ object WorkerInfo {
       .setPushPort(workerInfo.pushPort)
       .setReplicatePort(workerInfo.replicatePort)
       .putAllDisks(disks)
+      .putAllUserUsages(usages)
       .build()
   }
 }

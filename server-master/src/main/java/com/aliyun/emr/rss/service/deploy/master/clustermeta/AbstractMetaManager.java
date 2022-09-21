@@ -35,6 +35,7 @@ import org.slf4j.LoggerFactory;
 import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.meta.DiskInfo;
 import com.aliyun.emr.rss.common.meta.WorkerInfo;
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages;
 import com.aliyun.emr.rss.common.rpc.RpcAddress;
 import com.aliyun.emr.rss.common.rpc.RpcEnv;
 import com.aliyun.emr.rss.common.util.Utils;
@@ -61,7 +62,10 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
   public final LongAdder partitionTotalFileCount = new LongAdder();
 
   public void updateRequestSlotsMeta(
-      String shuffleKey, String hostName, Map<String, Map<String, Integer>> workerWithAllocations) {
+      String shuffleKey,
+      ControlMessages.UserIdentifier userIdentifier,
+      String hostName,
+      Map<String, Map<String, Integer>> workerWithAllocations) {
     registeredShuffle.add(shuffleKey);
 
     String appId = Utils.splitShuffleKey(shuffleKey)._1;
@@ -83,7 +87,8 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
         for (WorkerInfo workerInfo : workers) {
           String workerUniqueId = workerInfo.toUniqueId();
           if (workerWithAllocations.containsKey(workerUniqueId)) {
-            workerInfo.allocateSlots(shuffleKey, workerWithAllocations.get(workerUniqueId));
+            workerInfo.allocateSlots(
+                shuffleKey, userIdentifier, workerWithAllocations.get(workerUniqueId));
           }
         }
       }
@@ -162,9 +167,10 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       int fetchPort,
       int replicatePort,
       Map<String, DiskInfo> disks,
+      ConcurrentHashMap<ControlMessages.UserIdentifier, java.lang.Long> userUsage,
       long time) {
     WorkerInfo worker =
-        new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, disks, null);
+        new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, disks, userUsage, null);
     AtomicLong availableSlots = new AtomicLong();
     LOG.debug("update worker {}:{} heart beat {}", host, rpcPort, disks);
     synchronized (workers) {
@@ -172,6 +178,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       workerInfo.ifPresent(
           info -> {
             info.updateDiskInfos(disks, estimatedPartitionSize);
+            info.updateUserUsage(userUsage);
             availableSlots.set(info.totalAvailableSlots());
             info.lastHeartbeat_$eq(time);
           });
@@ -191,9 +198,10 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
       int pushPort,
       int fetchPort,
       int replicatePort,
-      Map<String, DiskInfo> disks) {
+      Map<String, DiskInfo> disks,
+      ConcurrentHashMap<ControlMessages.UserIdentifier, Long> userUsage) {
     WorkerInfo workerInfo =
-        new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, disks, null);
+        new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, disks, userUsage, null);
     workerInfo.lastHeartbeat_$eq(System.currentTimeMillis());
 
     try {

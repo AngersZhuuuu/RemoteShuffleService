@@ -75,7 +75,8 @@ private[deploy] class Controller(
           slaveLocations,
           splitThreshold,
           splitMode,
-          partitionType) =>
+          partitionType,
+          userIdentifier) =>
       val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
       workerSource.sample(WorkerSource.ReserveSlotsTime, shuffleKey) {
         logDebug(s"Received ReserveSlots request, $shuffleKey, " +
@@ -89,7 +90,8 @@ private[deploy] class Controller(
           slaveLocations,
           splitThreshold,
           splitMode,
-          partitionType)
+          partitionType,
+          userIdentifier)
         logDebug(s"ReserveSlots for $shuffleKey finished.")
       }
 
@@ -123,7 +125,8 @@ private[deploy] class Controller(
       slaveLocations: jList[PartitionLocation],
       splitThreshold: Long,
       splitMode: PartitionSplitMode,
-      partitionType: PartitionType): Unit = {
+      partitionType: PartitionType,
+      userIdentifier: UserIdentifier): Unit = {
     val shuffleKey = Utils.makeShuffleKey(applicationId, shuffleId)
     if (shutdown.get()) {
       val msg = "Current worker is shutting down!"
@@ -193,7 +196,10 @@ private[deploy] class Controller(
     partitionLocationInfo.addMasterPartitions(shuffleKey, masterPartitions)
     partitionLocationInfo.addSlavePartitions(shuffleKey, slavePartitions)
 
-    workerInfo.allocateSlots(shuffleKey, Utils.getSlotsPerDisk(masterLocations, slaveLocations))
+    workerInfo.allocateSlots(
+      shuffleKey,
+      userIdentifier,
+      Utils.getSlotsPerDisk(masterLocations, slaveLocations))
 
     logInfo(s"Reserved ${masterPartitions.size()} master location" +
       s" and ${slavePartitions.size()} slave location for $shuffleKey ")

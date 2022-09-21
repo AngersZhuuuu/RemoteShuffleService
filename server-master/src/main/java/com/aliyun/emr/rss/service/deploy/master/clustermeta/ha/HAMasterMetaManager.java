@@ -19,6 +19,7 @@ package com.aliyun.emr.rss.service.deploy.master.clustermeta.ha;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import com.google.protobuf.ServiceException;
@@ -29,6 +30,7 @@ import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.haclient.RssHARetryClient;
 import com.aliyun.emr.rss.common.meta.DiskInfo;
 import com.aliyun.emr.rss.common.meta.WorkerInfo;
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages.UserIdentifier;
 import com.aliyun.emr.rss.common.rpc.RpcEnv;
 import com.aliyun.emr.rss.service.deploy.master.clustermeta.AbstractMetaManager;
 import com.aliyun.emr.rss.service.deploy.master.clustermeta.MetaUtil;
@@ -59,6 +61,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
   @Override
   public void handleRequestSlots(
       String shuffleKey,
+      UserIdentifier userIdentifier,
       String hostName,
       Map<String, Map<String, Integer>> workerToAllocatedSlots,
       String requestId) {
@@ -66,7 +69,8 @@ public class HAMasterMetaManager extends AbstractMetaManager {
       ResourceProtos.RequestSlotsRequest.Builder builder =
           ResourceProtos.RequestSlotsRequest.newBuilder()
               .setShuffleKey(shuffleKey)
-              .setHostName(hostName);
+              .setHostName(hostName)
+              .setUserIdentifier(MetaUtil.toPbUserIdentifier(userIdentifier));
       for (String workerUniqueId : workerToAllocatedSlots.keySet()) {
         builder.putWorkerAllocations(
             workerUniqueId,
@@ -217,6 +221,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
       int fetchPort,
       int replicatePort,
       Map<String, DiskInfo> disks,
+      ConcurrentHashMap<UserIdentifier, Long> userUsage,
       long time,
       String requestId) {
     try {
@@ -232,6 +237,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                       .setFetchPort(fetchPort)
                       .setReplicatePort(replicatePort)
                       .putAllDisks(MetaUtil.toPbDiskInfos(disks))
+                      .putAllUserUsages(MetaUtil.toPbUserUsages(userUsage))
                       .setTime(time)
                       .build())
               .build());
@@ -248,6 +254,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
       int fetchPort,
       int replicatePort,
       Map<String, DiskInfo> disks,
+      ConcurrentHashMap<UserIdentifier, java.lang.Long> userUsage,
       String requestId) {
     try {
       ratisServer.submitRequest(
@@ -262,6 +269,7 @@ public class HAMasterMetaManager extends AbstractMetaManager {
                       .setFetchPort(fetchPort)
                       .setReplicatePort(replicatePort)
                       .putAllDisks(MetaUtil.toPbDiskInfos(disks))
+                      .putAllUserUsages(MetaUtil.toPbUserUsages(userUsage))
                       .build())
               .build());
     } catch (ServiceException e) {

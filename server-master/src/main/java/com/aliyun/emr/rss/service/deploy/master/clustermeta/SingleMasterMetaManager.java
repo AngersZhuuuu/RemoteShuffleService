@@ -19,6 +19,7 @@ package com.aliyun.emr.rss.service.deploy.master.clustermeta;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,6 +27,7 @@ import org.slf4j.LoggerFactory;
 import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.meta.DiskInfo;
 import com.aliyun.emr.rss.common.meta.WorkerInfo;
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages.UserIdentifier;
 import com.aliyun.emr.rss.common.rpc.RpcEnv;
 
 public class SingleMasterMetaManager extends AbstractMetaManager {
@@ -41,10 +43,11 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
   @Override
   public void handleRequestSlots(
       String shuffleKey,
+      UserIdentifier userIdentifier,
       String hostName,
       Map<String, Map<String, Integer>> workerToAllocatedSlots,
       String requestId) {
-    updateRequestSlotsMeta(shuffleKey, hostName, workerToAllocatedSlots);
+    updateRequestSlotsMeta(shuffleKey, userIdentifier, hostName, workerToAllocatedSlots);
   }
 
   @Override
@@ -92,9 +95,11 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
       int fetchPort,
       int replicatePort,
       Map<String, DiskInfo> disks,
+      ConcurrentHashMap<UserIdentifier, Long> userUsage,
       long time,
       String requestId) {
-    updateWorkerHeartbeatMeta(host, rpcPort, pushPort, fetchPort, replicatePort, disks, time);
+    updateWorkerHeartbeatMeta(
+        host, rpcPort, pushPort, fetchPort, replicatePort, disks, userUsage, time);
   }
 
   @Override
@@ -105,8 +110,9 @@ public class SingleMasterMetaManager extends AbstractMetaManager {
       int fetchPort,
       int replicatePort,
       Map<String, DiskInfo> disks,
+      ConcurrentHashMap<UserIdentifier, Long> userUsage,
       String requestId) {
-    updateRegisterWorkerMeta(host, rpcPort, pushPort, fetchPort, replicatePort, disks);
+    updateRegisterWorkerMeta(host, rpcPort, pushPort, fetchPort, replicatePort, disks, userUsage);
   }
 
   @Override

@@ -41,6 +41,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
 
   private val lifecycleHost = Utils.localHostName()
 
+  private val userIdentifier = UserIdentifier("", "")
+
   private val RemoveShuffleDelayMs = RssConf.removeShuffleDelayMs(conf)
   private val GetBlacklistDelayMs = RssConf.getBlacklistDelayMs(conf)
   private val ShouldReplicate = RssConf.replicate(conf)
@@ -884,7 +886,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
             slaveLocations,
             splitThreshold,
             splitMode,
-            partitionType))
+            partitionType,
+            userIdentifier))
         if (res.status.equals(StatusCode.SUCCESS)) {
           logDebug(s"Successfully allocated " +
             s"partitions buffer for ${Utils.makeShuffleKey(applicationId, shuffleId)}" +
@@ -1234,7 +1237,8 @@ class LifecycleManager(appId: String, val conf: RssConf) extends RpcEndpoint wit
       applicationId: String,
       shuffleId: Int,
       ids: util.ArrayList[Integer]): RequestSlotsResponse = {
-    val req = RequestSlots(applicationId, shuffleId, ids, lifecycleHost, ShouldReplicate)
+    val req =
+      RequestSlots(applicationId, shuffleId, ids, lifecycleHost, ShouldReplicate, userIdentifier)
     val res = requestRequestSlots(rssHARetryClient, req)
     if (res.status != StatusCode.SUCCESS) {
       requestRequestSlots(rssHARetryClient, req)

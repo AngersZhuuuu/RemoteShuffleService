@@ -19,13 +19,16 @@ package com.aliyun.emr.rss.service.deploy.master.clustermeta;
 
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.aliyun.emr.rss.common.meta.DiskInfo;
 import com.aliyun.emr.rss.common.meta.WorkerInfo;
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages.UserIdentifier;
 
 public interface IMetadataHandler {
   void handleRequestSlots(
       String shuffleKey,
+      UserIdentifier userIdentifier,
       String hostName,
       Map<String, Map<String, Integer>> workerToAllocatedSlots,
       String requestId);
@@ -56,6 +59,7 @@ public interface IMetadataHandler {
       int fetchPort,
       int replicatePort,
       Map<String, DiskInfo> disks,
+      ConcurrentHashMap<UserIdentifier, java.lang.Long> userUsage,
       long time,
       String requestId);
 
@@ -66,6 +70,7 @@ public interface IMetadataHandler {
       int fetchPort,
       int replicatePort,
       Map<String, DiskInfo> disks,
+      ConcurrentHashMap<UserIdentifier, java.lang.Long> userUsage,
       String requestId);
 
   void handleReportWorkerFailure(List<WorkerInfo> failedNodes, String requestId);

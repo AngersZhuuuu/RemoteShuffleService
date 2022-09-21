@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -31,6 +32,7 @@ import org.slf4j.LoggerFactory;
 import com.aliyun.emr.rss.common.RssConf;
 import com.aliyun.emr.rss.common.meta.DiskInfo;
 import com.aliyun.emr.rss.common.meta.WorkerInfo;
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages;
 import com.aliyun.emr.rss.service.deploy.master.clustermeta.MetaUtil;
 import com.aliyun.emr.rss.service.deploy.master.clustermeta.ResourceProtos;
 import com.aliyun.emr.rss.service.deploy.master.clustermeta.ResourceProtos.ResourceResponse;
@@ -99,11 +101,15 @@ public class MetaHandler {
       int fetchPort;
       int replicatePort;
       Map<String, DiskInfo> disks;
+      ConcurrentHashMap<ControlMessages.UserIdentifier, Long> userUsage;
+      ControlMessages.UserIdentifier user;
       List<Map<String, Integer>> slots = new ArrayList<>();
       Map<String, Map<String, Integer>> workerAllocations = new HashMap<>();
       switch (cmdType) {
         case RequestSlots:
           shuffleKey = request.getRequestSlotsRequest().getShuffleKey();
+          user =
+              MetaUtil.fromPbUserIdentifier(request.getRequestSlotsRequest().getUserIdentifier());
           request
               .getRequestSlotsRequest()
               .getWorkerAllocationsMap()
@@ -113,7 +119,7 @@ public class MetaHandler {
                   });
           LOG.debug("Handle request slots for {}", shuffleKey);
           metaSystem.updateRequestSlotsMeta(
-              shuffleKey, request.getRequestSlotsRequest().getHostName(), workerAllocations);
+              shuffleKey, user, request.getRequestSlotsRequest().getHostName(), workerAllocations);
           break;
 
         case ReleaseSlots:
@@ -176,17 +182,20 @@ public class MetaHandler {
           fetchPort = request.getWorkerHeartbeatRequest().getFetchPort();
           disks = MetaUtil.fromPbDiskInfos(request.getWorkerHeartbeatRequest().getDisksMap());
           replicatePort = request.getWorkerHeartbeatRequest().getReplicatePort();
+          userUsage =
+              MetaUtil.fromPbUserUsages(request.getWorkerHeartbeatRequest().getUserUsagesMap());
           LOG.debug(
-              "Handle worker heartbeat for {} {} {} {} {} {}",
+              "Handle worker heartbeat for {} {} {} {} {} {} {}",
               host,
               rpcPort,
               pushPort,
               fetchPort,
               replicatePort,
-              disks);
+              disks,
+              userUsage);
           time = request.getWorkerHeartbeatRequest().getTime();
           metaSystem.updateWorkerHeartbeatMeta(
-              host, rpcPort, pushPort, fetchPort, replicatePort, disks, time);
+              host, rpcPort, pushPort, fetchPort, replicatePort, disks, userUsage, time);
           break;
 
         case RegisterWorker:
@@ -196,16 +205,19 @@ public class MetaHandler {
           fetchPort = request.getRegisterWorkerRequest().getFetchPort();
           replicatePort = request.getRegisterWorkerRequest().getReplicatePort();
           disks = MetaUtil.fromPbDiskInfos(request.getRegisterWorkerRequest().getDisksMap());
+          userUsage =
+              MetaUtil.fromPbUserUsages(request.getWorkerHeartbeatRequest().getUserUsagesMap());
           LOG.debug(
-              "Handle worker register for {} {} {} {} {} {}",
+              "Handle worker register for {} {} {} {} {} {} {}",
               host,
               rpcPort,
               pushPort,
               fetchPort,
               replicatePort,
-              disks);
+              disks,
+              userUsage);
           metaSystem.updateRegisterWorkerMeta(
-              host, rpcPort, pushPort, fetchPort, replicatePort, disks);
+              host, rpcPort, pushPort, fetchPort, replicatePort, disks, userUsage);
           break;
 
         case ReportWorkerFailure:

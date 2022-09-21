@@ -337,6 +337,12 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
     throw exception
   }
 
+  def getFileInfos(shuffleKey: String): Array[FileInfo] = {
+    fileInfos.getOrDefault(
+      shuffleKey,
+      new ConcurrentHashMap[String, FileInfo]()).values().asScala.toArray
+  }
+
   def getFileInfo(shuffleKey: String, fileName: String): FileInfo = {
     val shuffleMap = fileInfos.get(shuffleKey)
     if (shuffleMap ne null) {

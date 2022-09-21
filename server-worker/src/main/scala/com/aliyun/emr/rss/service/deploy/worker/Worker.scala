@@ -150,7 +150,15 @@ private[deploy] class Worker(
     diskInfos.put(diskInfo.mountPoint, diskInfo)
   }
   val workerInfo =
-    new WorkerInfo(host, rpcPort, pushPort, fetchPort, replicatePort, diskInfos, controller.self)
+    new WorkerInfo(
+      host,
+      rpcPort,
+      pushPort,
+      fetchPort,
+      replicatePort,
+      diskInfos,
+      null,
+      controller.self)
 
   // whether this Worker registered to Master successfully
   val registered = new AtomicBoolean(false)
@@ -208,6 +216,13 @@ private[deploy] class Worker(
     storageManager.disksSnapshot().foreach { case diskInfo =>
       diskInfos.put(diskInfo.mountPoint, diskInfo)
     }
+    val userUsage = workerInfo.userToShuffleKey.asScala.map { case (userIdentifier, shuffleKeys) =>
+      val usage = shuffleKeys.asScala.map { case shuffleKey =>
+        storageManager.getFileInfos(shuffleKey).map(_.getFileLength).sum
+      }.sum
+      userIdentifier -> java.lang.Long.valueOf(usage)
+    }.asJava
+    workerInfo.userUsages.putAll(userUsage)
     val response = rssHARetryClient.askSync[HeartbeatResponse](
       HeartbeatFromWorker(
         host,
@@ -216,7 +231,8 @@ private[deploy] class Worker(
         fetchPort,
         replicatePort,
         diskInfos,
-        shuffleKeys),
+        shuffleKeys,
+        workerInfo.userUsages),
       classOf[HeartbeatResponse])
     if (response.registered) {
       response.expiredShuffleKeys.asScala.foreach(shuffleKey => workerInfo.releaseSlots(shuffleKey))
@@ -325,8 +341,23 @@ private[deploy] class Worker(
     while (registerTimeout > 0) {
       val rsp =
         try {
+          val userUsage =
+            workerInfo.userToShuffleKey.asScala.map { case (userIdentifier, shuffleKeys) =>
+              val usage = shuffleKeys.asScala.map { case shuffleKey =>
+                storageManager.getFileInfos(shuffleKey).map(_.getFileLength).sum
+              }.sum
+              userIdentifier -> java.lang.Long.valueOf(usage)
+            }.asJava
+          workerInfo.userUsages.putAll(userUsage)
           rssHARetryClient.askSync[RegisterWorkerResponse](
-            RegisterWorker(host, rpcPort, pushPort, fetchPort, replicatePort, workerInfo.diskInfos),
+            RegisterWorker(
+              host,
+              rpcPort,
+              pushPort,
+              fetchPort,
+              replicatePort,
+              workerInfo.diskInfos,
+              workerInfo.userUsages),
             classOf[RegisterWorkerResponse])
         } catch {
           case throwable: Throwable =>

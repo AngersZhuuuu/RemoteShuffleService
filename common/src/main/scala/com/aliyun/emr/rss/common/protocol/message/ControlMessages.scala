@@ -19,6 +19,7 @@ package com.aliyun.emr.rss.common.protocol.message
 
 import java.util
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 
 import scala.collection.JavaConverters._
 
@@ -43,7 +44,15 @@ sealed trait Message extends Serializable {
       case RemoveExpiredShuffle =>
         new TransportMessage(MessageType.REMOVE_EXPIRED_SHUFFLE, null)
 
-      case RegisterWorker(host, rpcPort, pushPort, fetchPort, replicatePort, disks, requestId) =>
+      case RegisterWorker(
+            host,
+            rpcPort,
+            pushPort,
+            fetchPort,
+            replicatePort,
+            disks,
+            userUsages,
+            requestId) =>
         val pbDisks = disks.asScala
           .map(item =>
             item._1 -> PbDiskInfo
@@ -52,6 +61,10 @@ sealed trait Message extends Serializable {
               .setAvgFlushTime(item._2.avgFlushTime)
               .setUsedSlots(item._2.activeSlots)
               .build()).toMap.asJava
+        val pbUserUsages = userUsages.asScala
+          .map { case (user, usage) =>
+            user.toString -> usage
+          }.asJava
         val payload = PbRegisterWorker.newBuilder()
           .setHost(host)
           .setRpcPort(rpcPort)
@@ -59,6 +72,7 @@ sealed trait Message extends Serializable {
           .setFetchPort(fetchPort)
           .setReplicatePort(replicatePort)
           .putAllDisks(pbDisks)
+          .putAllUserUsages(pbUserUsages)
           .setRequestId(requestId)
           .build().toByteArray
         new TransportMessage(MessageType.REGISTER_WORKER, payload)
@@ -71,6 +85,7 @@ sealed trait Message extends Serializable {
             replicatePort,
             disks,
             shuffleKeys,
+            userUsages,
             requestId) =>
         val pbDisks = disks.asScala
           .map(item =>
@@ -81,6 +96,10 @@ sealed trait Message extends Serializable {
               .setUsedSlots(item._2.activeSlots)
               .setStatus(item._2.status.getValue)
               .build()).toMap.asJava
+        val pbUserUsages = userUsages.asScala
+          .map { case (user, usage) =>
+            user.toString -> usage
+          }.asJava
         val payload = PbHeartbeatFromWorker.newBuilder()
           .setHost(host)
           .setRpcPort(rpcPort)
@@ -89,6 +108,7 @@ sealed trait Message extends Serializable {
           .putAllDisks(pbDisks)
           .setReplicatePort(replicatePort)
           .addAllShuffleKeys(shuffleKeys)
+          .putAllUserUsages(pbUserUsages)
           .setRequestId(requestId)
           .build().toByteArray
         new TransportMessage(MessageType.HEARTBEAT_FROM_WORKER, payload)
@@ -125,6 +145,7 @@ sealed trait Message extends Serializable {
             partitionIdList,
             hostname,
             shouldReplicate,
+            userIdentifier,
             requestId) =>
         val payload = PbRequestSlots.newBuilder()
           .setApplicationId(applicationId)
@@ -132,6 +153,10 @@ sealed trait Message extends Serializable {
           .addAllPartitionIdList(partitionIdList)
           .setHostname(hostname)
           .setShouldReplicate(shouldReplicate)
+          .setUserIdentifier(
+            PbUserIdentifier.newBuilder()
+              .setTenantId(userIdentifier.tenantId)
+              .setName(userIdentifier.name))
           .setRequestId(requestId)
           .build().toByteArray
         new TransportMessage(MessageType.REQUEST_SLOTS, payload)
@@ -347,7 +372,8 @@ sealed trait Message extends Serializable {
             slaveLocations,
             splitThreshold,
             splitMode,
-            partType) =>
+            partType,
+            userIdentifier) =>
         val payload = PbReserveSlots.newBuilder()
           .setApplicationId(applicationId)
           .setShuffleId(shuffleId)
@@ -358,6 +384,10 @@ sealed trait Message extends Serializable {
           .setSplitThreshold(splitThreshold)
           .setSplitMode(splitMode.getValue)
           .setPartitionType(partType.getValue)
+          .setUserIdentifier(
+            PbUserIdentifier.newBuilder()
+              .setTenantId(userIdentifier.tenantId)
+              .setName(userIdentifier.name))
           .build().toByteArray
         new TransportMessage(MessageType.RESERVE_SLOTS, payload)
 
@@ -498,6 +528,7 @@ object ControlMessages extends Logging {
       fetchPort: Int,
       replicatePort: Int,
       disks: util.Map[String, DiskInfo],
+      userUsages: ConcurrentHashMap[UserIdentifier, java.lang.Long],
       override var requestId: String = ZERO_UUID)
     extends MasterRequestMessage
 
@@ -509,6 +540,7 @@ object ControlMessages extends Logging {
       replicatePort: Int,
       disks: util.Map[String, DiskInfo],
       shuffleKeys: util.HashSet[String],
+      userUsages: ConcurrentHashMap[UserIdentifier, java.lang.Long],
       override var requestId: String = ZERO_UUID) extends MasterRequestMessage
 
   case class HeartbeatResponse(
@@ -533,6 +565,7 @@ object ControlMessages extends Logging {
       partitionIdList: util.ArrayList[Integer],
       hostname: String,
       shouldReplicate: Boolean,
+      userIdentifier: UserIdentifier,
       override var requestId: String = ZERO_UUID)
     extends MasterRequestMessage
 
@@ -663,7 +696,8 @@ object ControlMessages extends Logging {
       slaveLocations: util.List[PartitionLocation],
       splitThreshold: Long,
       splitMode: PartitionSplitMode,
-      partitionType: PartitionType)
+      partitionType: PartitionType,
+      userIdentifier: UserIdentifier)
     extends WorkerMessage
 
   case class ReserveSlotsResponse(
@@ -718,7 +752,17 @@ object ControlMessages extends Logging {
 
   case class ThreadDumpResponse(threadDump: String) extends Message
 
-  case class UserIdentifier(group: String, name: String) extends Message
+  case class UserIdentifier(tenantId: String, name: String) extends Message {
+    override def toString: String = s"($tenantId, $name)"
+  }
+
+  object UserIdentifier {
+    val REGEX = "^\\((.+).(.+)\\)$".r
+    def fromString(str: String): UserIdentifier = {
+      val REGEX(tenantId, name) = str
+      UserIdentifier(tenantId, name)
+    }
+  }
 
   def fromTransportMessage(message: TransportMessage): Message = {
     message.getType match {
@@ -735,6 +779,10 @@ object ControlMessages extends Logging {
             item._2.getUsableSpace,
             item._2.getAvgFlushTime,
             item._2.getUsedSlots)).asJava
+        val userUsages = new ConcurrentHashMap[UserIdentifier, java.lang.Long]()
+        userUsages.putAll(pbRegisterWorker.getUserUsagesMap.asScala.map { case (user, usage) =>
+          UserIdentifier.fromString(user) -> usage
+        }.toMap.asJava)
         RegisterWorker(
           pbRegisterWorker.getHost,
           pbRegisterWorker.getRpcPort,
@@ -742,6 +790,7 @@ object ControlMessages extends Logging {
           pbRegisterWorker.getFetchPort,
           pbRegisterWorker.getReplicatePort,
           disks,
+          userUsages,
           pbRegisterWorker.getRequestId)
 
       case HEARTBEAT_FROM_WORKER =>
@@ -761,6 +810,10 @@ object ControlMessages extends Logging {
         if (pbHeartbeatFromWorker.getShuffleKeysCount > 0) {
           shuffleKeys.addAll(pbHeartbeatFromWorker.getShuffleKeysList)
         }
+        val userUsages = new ConcurrentHashMap[UserIdentifier, java.lang.Long]()
+        userUsages.putAll(pbHeartbeatFromWorker.getUserUsagesMap.asScala.map { case (user, usage) =>
+          UserIdentifier.fromString(user) -> usage
+        }.toMap.asJava)
         HeartbeatFromWorker(
           pbHeartbeatFromWorker.getHost,
           pbHeartbeatFromWorker.getRpcPort,
@@ -769,6 +822,7 @@ object ControlMessages extends Logging {
           pbHeartbeatFromWorker.getReplicatePort,
           disks,
           shuffleKeys,
+          userUsages,
           pbHeartbeatFromWorker.getRequestId)
 
       case HEARTBEAT_RESPONSE =>
@@ -806,6 +860,9 @@ object ControlMessages extends Logging {
           new util.ArrayList[Integer](pbRequestSlots.getPartitionIdListList),
           pbRequestSlots.getHostname,
           pbRequestSlots.getShouldReplicate,
+          UserIdentifier(
+            pbRequestSlots.getUserIdentifier.getTenantId,
+            pbRequestSlots.getUserIdentifier.getName),
           pbRequestSlots.getRequestId)
 
       case RELEASE_SLOTS =>
@@ -964,7 +1021,10 @@ object ControlMessages extends Logging {
             .map(PartitionLocation.fromPbPartitionLocation(_)).toList.asJava),
           pbReserveSlots.getSplitThreshold,
           Utils.toShuffleSplitMode(pbReserveSlots.getSplitMode),
-          Utils.toPartitionType(pbReserveSlots.getPartitionType))
+          Utils.toPartitionType(pbReserveSlots.getPartitionType),
+          UserIdentifier(
+            pbReserveSlots.getUserIdentifier.getTenantId,
+            pbReserveSlots.getUserIdentifier.getName))
 
       case RESERVE_SLOTS_RESPONSE =>
         val pbReserveSlotsResponse = PbReserveSlotsResponse.parseFrom(message.getPayload)

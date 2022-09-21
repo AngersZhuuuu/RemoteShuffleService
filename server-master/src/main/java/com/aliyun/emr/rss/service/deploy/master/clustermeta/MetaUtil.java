@@ -19,9 +19,11 @@ package com.aliyun.emr.rss.service.deploy.master.clustermeta;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import com.aliyun.emr.rss.common.meta.DiskInfo;
 import com.aliyun.emr.rss.common.meta.WorkerInfo;
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages;
 import com.aliyun.emr.rss.common.util.Utils;
 
 public class MetaUtil {
@@ -76,5 +78,34 @@ public class MetaUtil {
                     .setStatus(v.status().getValue())
                     .build()));
     return map;
+  }
+
+  public static ConcurrentHashMap<ControlMessages.UserIdentifier, Long> fromPbUserUsages(
+      Map<String, Long> userUsages) {
+    ConcurrentHashMap<ControlMessages.UserIdentifier, Long> map = new ConcurrentHashMap<>();
+
+    userUsages.forEach((k, v) -> map.put(ControlMessages.UserIdentifier$.MODULE$.fromString(k), v));
+    return map;
+  }
+
+  public static Map<String, Long> toPbUserUsages(
+      ConcurrentHashMap<ControlMessages.UserIdentifier, Long> userUsages) {
+    Map<String, Long> map = new HashMap<>();
+    userUsages.forEach((k, v) -> map.put(k.toString(), v));
+    return map;
+  }
+
+  public static ControlMessages.UserIdentifier fromPbUserIdentifier(
+      ResourceProtos.UserIdentifier userIdentifier) {
+    return new ControlMessages.UserIdentifier(
+        userIdentifier.getTenantId(), userIdentifier.getName());
+  }
+
+  public static ResourceProtos.UserIdentifier toPbUserIdentifier(
+      ControlMessages.UserIdentifier userIdentifier) {
+    return ResourceProtos.UserIdentifier.newBuilder()
+        .setTenantId(userIdentifier.tenantId())
+        .setName(userIdentifier.name())
+        .build();
   }
 }

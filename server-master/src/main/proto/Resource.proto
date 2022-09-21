@@ -63,6 +63,7 @@ message RequestSlotsRequest {
   required string shuffleKey = 1;
   required string hostName = 2;
   map<string, SlotInfo> workerAllocations = 3;
+  required UserIdentifier userIdentifier = 4;
 }
 
 message SlotInfo{
@@ -113,7 +114,8 @@ message WorkerHeartbeatRequest {
   required int32 fetchPort = 4;
   required int32 replicatePort = 5;
   map<string, DiskInfo> disks = 6;
-  required int64 time = 7;
+  map<string, int64> userUsages = 7;
+  required int64 time = 8;
 }
 
 message RegisterWorkerRequest {
@@ -123,6 +125,7 @@ message RegisterWorkerRequest {
   required int32 fetchPort = 4;
   required int32 replicatePort = 5;
   map<string, DiskInfo> disks = 6;
+  map<string, int64> userUsages = 7;
 }
 
 message ReportWorkerFailureRequest {
@@ -138,7 +141,7 @@ message WorkerAddress {
 }
 
 message UserIdentifier {
-  required string group = 1;
+  required string tenantId = 1;
   required string name = 2;
 }
 
