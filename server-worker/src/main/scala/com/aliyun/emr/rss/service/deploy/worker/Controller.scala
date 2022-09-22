@@ -192,13 +192,13 @@ private[deploy] class Controller(
       return
     }
 
+    storageManager.updateUser(userIdentifier, shuffleKey)
     // reserve success, update status
     partitionLocationInfo.addMasterPartitions(shuffleKey, masterPartitions)
     partitionLocationInfo.addSlavePartitions(shuffleKey, slavePartitions)
 
     workerInfo.allocateSlots(
       shuffleKey,
-      userIdentifier,
       Utils.getSlotsPerDisk(masterLocations, slaveLocations))
 
     logInfo(s"Reserved ${masterPartitions.size()} master location" +

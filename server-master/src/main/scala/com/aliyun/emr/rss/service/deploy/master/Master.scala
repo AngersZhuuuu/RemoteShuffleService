@@ -282,8 +282,8 @@ private[deploy] class Master(
     case ReportWorkerFailure(failedWorkers: util.List[WorkerInfo], requestId: String) =>
       executeWithLeaderChecker(context, handleReportNodeFailure(context, failedWorkers, requestId))
 
-    case CheckAlive =>
-      executeWithLeaderChecker(context, handleCheckAlive(context))
+    case CheckAvailable(userIdentifier) =>
+      executeWithLeaderChecker(context, handleCheckAvailable(userIdentifier, context))
   }
 
   private def timeoutDeadWorkers() {
@@ -592,8 +592,13 @@ private[deploy] class Master(
     context.reply(OneWayMessageResponse)
   }
 
-  private def handleCheckAlive(context: RpcCallContext): Unit = {
-    context.reply(CheckAliveResponse(true))
+  private def handleCheckAvailable(userIdentifier: UserIdentifier, context: RpcCallContext): Unit = {
+    statusSystem.workers.asScala.flatMap(_.userUsages.asScala.get(userIdentifier)).toList.map(_.longValue()).sum
+    context.reply(CheckAvailableResponse(true))
+  }
+
+  private def checkQuota(userIdentifier: UserIdentifier): Boolean = {
+    
   }
 
   private def workersNotBlacklisted(

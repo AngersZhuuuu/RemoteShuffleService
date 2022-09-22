@@ -216,7 +216,7 @@ private[deploy] class Worker(
     storageManager.disksSnapshot().foreach { case diskInfo =>
       diskInfos.put(diskInfo.mountPoint, diskInfo)
     }
-    val userUsage = workerInfo.userToShuffleKey.asScala.map { case (userIdentifier, shuffleKeys) =>
+    val userUsage = storageManager.userToShuffleKey.asScala.map { case (userIdentifier, shuffleKeys) =>
       val usage = shuffleKeys.asScala.map { case shuffleKey =>
         storageManager.getFileInfos(shuffleKey).map(_.getFileLength).sum
       }.sum
@@ -342,7 +342,7 @@ private[deploy] class Worker(
       val rsp =
         try {
           val userUsage =
-            workerInfo.userToShuffleKey.asScala.map { case (userIdentifier, shuffleKeys) =>
+            storageManager.userToShuffleKey.asScala.map { case (userIdentifier, shuffleKeys) =>
               val usage = shuffleKeys.asScala.map { case shuffleKey =>
                 storageManager.getFileInfos(shuffleKey).map(_.getFileLength).sum
               }.sum

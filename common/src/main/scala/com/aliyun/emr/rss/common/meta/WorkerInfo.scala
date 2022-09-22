@@ -78,7 +78,6 @@ class WorkerInfo(
   0 until allocationBuckets.length foreach { case idx =>
     allocationBuckets(idx) = 0
   }
-  var userToShuffleKey = new ConcurrentHashMap[UserIdentifier, util.Set[String]]()
 
   def isActive: Boolean = {
     endpoint.asInstanceOf[NettyRpcEndpointRef].client.isActive
@@ -91,7 +90,6 @@ class WorkerInfo(
 
   def allocateSlots(
       shuffleKey: String,
-      userIdentifier: UserIdentifier,
       slotsPerDisk: util.Map[String, Integer]): Unit =
     this.synchronized {
       logDebug(s"shuffle $shuffleKey allocations $slotsPerDisk")
@@ -108,14 +106,6 @@ class WorkerInfo(
           diskInfos.get(disk).allocateSlots(shuffleKey, slots)
         }
         totalSlots += slots
-      }
-
-      if (userToShuffleKey.containsKey(userIdentifier)) {
-        userToShuffleKey.get(userIdentifier).add(shuffleKey)
-      } else {
-        val shuffleKeys = new util.HashSet[String]()
-        shuffleKeys.add(shuffleKey)
-        userToShuffleKey.put(userIdentifier, shuffleKeys)
       }
 
       val current = System.currentTimeMillis()

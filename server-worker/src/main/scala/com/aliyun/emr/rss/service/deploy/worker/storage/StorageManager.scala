@@ -33,13 +33,13 @@ import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.fs.permission.FsPermission
 import org.iq80.leveldb.DB
-
 import com.aliyun.emr.rss.common.RssConf
 import com.aliyun.emr.rss.common.exception.RssException
 import com.aliyun.emr.rss.common.internal.Logging
 import com.aliyun.emr.rss.common.meta.{DeviceInfo, DiskInfo, DiskStatus, FileInfo}
 import com.aliyun.emr.rss.common.metrics.source.AbstractSource
 import com.aliyun.emr.rss.common.network.server.MemoryTracker.MemoryTrackerListener
+import com.aliyun.emr.rss.common.protocol.message.ControlMessages.UserIdentifier
 import com.aliyun.emr.rss.common.protocol.{PartitionLocation, PartitionSplitMode, PartitionType}
 import com.aliyun.emr.rss.common.util.{ThreadUtils, Utils}
 import com.aliyun.emr.rss.common.util.PBSerDeUtils
@@ -160,6 +160,18 @@ final private[worker] class StorageManager(conf: RssConf, workerSource: Abstract
       if (dirs.length > 0) {
         (operand + 1) % dirs.length
       } else 0
+    }
+  }
+
+  var userToShuffleKey = new ConcurrentHashMap[UserIdentifier, util.Set[String]]()
+
+  def updateUser(userIdentifier: UserIdentifier, shuffleKey: String): Unit = {
+    if (userToShuffleKey.containsKey(userIdentifier)) {
+      userToShuffleKey.get(userIdentifier).add(shuffleKey)
+    } else {
+      val shuffleKeys = new util.HashSet[String]()
+      shuffleKeys.add(shuffleKey)
+      userToShuffleKey.put(userIdentifier, shuffleKeys)
     }
   }
 

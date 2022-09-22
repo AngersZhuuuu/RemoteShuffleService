@@ -86,7 +86,7 @@ class WorkerInfoSuite extends RssFunSuite {
             if (allocatedSlots.compareAndSet(allocatedSlot, newAllocatedSlot)) {
               val allocationMap = new util.HashMap[String, Integer]()
               allocationMap.put("disk1", requireSlot)
-              worker.allocateSlots(shuffleKey, userIdentifier, allocationMap)
+              worker.allocateSlots(shuffleKey, allocationMap)
             }
           }
         }

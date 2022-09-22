@@ -88,7 +88,7 @@ public abstract class AbstractMetaManager implements IMetadataHandler {
           String workerUniqueId = workerInfo.toUniqueId();
           if (workerWithAllocations.containsKey(workerUniqueId)) {
             workerInfo.allocateSlots(
-                shuffleKey, userIdentifier, workerWithAllocations.get(workerUniqueId));
+                shuffleKey, workerWithAllocations.get(workerUniqueId));
           }
         }
       }
