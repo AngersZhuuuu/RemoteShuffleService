@@ -25,5 +25,6 @@ license: |
    who want replication on should explicitly enable replication. For example, to enable replication for Spark
    users should add the spark config when submitting job: `spark.celeborn.push.replicate.enabled=true`
 
- - From 0.3.0 on the default value for `celeborn.worker.workingDir` is changed from `hadoop/rss-worker/shuffle_data` to `rss-worker/shuffle_data`,
-   users who want to use origin working dir path should set this configuration.
+ - From 0.3.0 on the default value for `celeborn.worker.workingDir` is changed from `hadoop/rss-worker/shuffle_data`
+   to `rss-worker/shuffle_data`, users who want to use the original working dir path should set
+   `celeborn.push.replicate.enabled` to `hadoop/rss-worker/shuffle_data` when starting worker.
