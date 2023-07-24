@@ -860,6 +860,28 @@ private[celeborn] class Master(
   override def isShutdown: String = throw new UnsupportedOperationException()
 
   override def isRegistered: String = throw new UnsupportedOperationException()
+  
+  override def help: String = {
+    """
+      |====================== Restfull API Options ===========================
+      |URL options:
+      |  /metrics/prometheus   -- List the metrics data in prometheus format of the master.
+      |  /conf                 -- List the conf setting of the master.
+      |  /workerInfo           -- List worker information of the service. It will list all
+      |                           registered workers 's information.
+      |  /lostWorkers          -- List all lost workers of the master.
+      |  /excludedWorkers      -- List all excluded workers of the master.
+      |  /threadDump           -- List the current thread dump of the master.
+      |  /hostnames            -- List all running application's LifecycleManager's hostnames of
+      |                           the cluster.
+      |  /applications         -- List all running application's ids of the cluster.
+      |  /shuffles             -- List all running shuffle keys of the service. It will return all
+      |                           running shuffle's key of the cluster.
+      |  /listTopDiskUsedApps  -- List the top disk usage application ids. It will return the top
+      |                           disk usage application ids for the cluster.
+      |  /help                 -- List all the supported URL options of the master.
+      |""".stripMargin
+  }
 
   private def isMasterActive: Int = {
     // use int rather than bool for better monitoring on dashboard

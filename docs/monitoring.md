@@ -289,18 +289,19 @@ API path listed as below:
 
 #### Master
 
-| Path                  | Meaning                                                                                                     |
-|-----------------------|-------------------------------------------------------------------------------------------------------------|
-| /metrics/prometheus   | List the metrics data in prometheus format of the master.                                                   |
-| /conf                 | List the conf setting of the master.                                                                        |
-| /workerInfo           | List worker information of the service. It will list all registered workers 's information.                 |
-| /lostWorkers          | List all lost workers of the master.                                                                        |
-| /excludedWorkers      | List all excluded workers of the master.                                                                    |
-| /threadDump           | List the current thread dump of the master.                                                                 |
-| /hostnames            | List all running application's LifecycleManager's hostnames of the cluster.                                 |
-| /applications         | List all running application's ids of the cluster.                                                          |
-| /shuffles             | List all running shuffle keys of the service. It will return all running shuffle's key of the cluster.      |
-| /listTopDiskUsedApps  | List the top disk usage application ids. It will return the top disk usage application ids for the cluster. |
+| Path                 | Meaning                                                                                                     |
+|----------------------|-------------------------------------------------------------------------------------------------------------|
+| /metrics/prometheus  | List the metrics data in prometheus format of the master.                                                   |
+| /conf                | List the conf setting of the master.                                                                        |
+| /workerInfo          | List worker information of the service. It will list all registered workers 's information.                 |
+| /lostWorkers         | List all lost workers of the master.                                                                        |
+| /excludedWorkers     | List all excluded workers of the master.                                                                    |
+| /threadDump          | List the current thread dump of the master.                                                                 |
+| /hostnames           | List all running application's LifecycleManager's hostnames of the cluster.                                 |
+| /applications        | List all running application's ids of the cluster.                                                          |
+| /shuffles            | List all running shuffle keys of the service. It will return all running shuffle's key of the cluster.      |
+| /listTopDiskUsedApps | List the top disk usage application ids. It will return the top disk usage application ids for the cluster. |
+| /help                | List all the supported URL options of the master.                                                           |                                                               |
 
 #### Worker
 
@@ -316,3 +317,4 @@ API path listed as below:
 | /unavailablePeers          | List the unavailable peers of the worker, this always means the worker connect to the peer failed.       |
 | /isShutdown                | Show if the worker is during the process of shutdown.                                                    |
 | /isRegistered              | Show if the worker is registered to the master success.                                                  |
+| /help                      | List all the supported URL options of the worker.                                                        |                                                               |

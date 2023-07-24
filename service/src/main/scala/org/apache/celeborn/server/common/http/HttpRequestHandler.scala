@@ -90,6 +90,8 @@ class HttpRequestHandler(
         service.isShutdown
       case "/isRegistered" if service.serviceName == Service.WORKER =>
         service.isRegistered
+      case "/help" =>
+        service.help
       case _ => INVALID
     }
   }

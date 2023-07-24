@@ -566,6 +566,28 @@ private[celeborn] class Worker(
     sb.toString()
   }
 
+  override def help: String = {
+    """
+      |====================== Restfull API Options ===========================
+      |URL options:
+      |  /metrics/prometheus        -- List the metrics data in prometheus format of the worker.
+      |  /conf                      -- List the conf setting of the worker.
+      |  /workerInfo                -- List the worker information of the worker.
+      |  /threadDump                -- List the current thread dump of the worker.
+      |  /shuffles                  -- List all the running shuffle keys of the worker. It only
+      |                                return keys of shuffles running in that worker.
+      |  /listTopDiskUsedApps       -- List the top disk usage application ids. It only return
+      |                                application ids running in that worker.
+      |  /listPartitionLocationInfo -- List all the living PartitionLocation information
+      |                                in that worker.
+      |  /unavailablePeers          -- List the unavailable peers of the worker, this always
+      |                                means the worker connect to the peer failed.
+      |  /isShutdown                -- Show if the worker is during the process of shutdown.
+      |  /isRegistered              -- Show if the worker is registered to the master success.
+      |  /help                      -- List all the supported URL options of the Worker.
+      |""".stripMargin
+  }
+
   ShutdownHookManager.get().addShutdownHook(
     new Thread(new Runnable {
       override def run(): Unit = {
